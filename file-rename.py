@@ -49,33 +49,41 @@ def main():
             print(f"No files matched the filter '{ext_filter}'.")
             continue
 
-        # 3. User Input for Count
-        try:
-            print(f"\nMatched {len(filtered_files)} files.")
-            val = input(f"How many files to convert? (1-{len(filtered_files)}): ")
-            count = int(val)
-            if not (1 <= count <= len(filtered_files)):
-                print(f"Error: Range must be 1-{len(filtered_files)}.")
-                continue
-        except ValueError:
-            print("Error: Please enter a valid number.")
-            continue
-
-        selected_files = filtered_files[:count]
-
-        # 4. Format Selection
-        print("\nChoose conversion format:")
-        print("1. UPPER CASE")
-        print("2. lower case")
-        print("3. Sentence case")
-        print("4. kebab-case")
-        print("5. snake_case")
+        # 3. Format Selection (Moved up to filter out already formatted files)
+        print("\nChoose target format:")
+        print("1. UPPER CASE | 2. lower case | 3. Sentence case | 4. kebab-case | 5. snake_case")
         mode = input("Select an option (1-5): ").strip()
         if mode not in '12345':
             print("Invalid selection.")
             continue
 
-        # 5. Preview & Confirmation
+        # 4. Filter out files already in the requested format
+        files_to_process = []
+        for f in filtered_files:
+            potential_name = get_new_name(f, mode)
+            if f.name != potential_name.name:
+                files_to_process.append(f)
+
+        if not files_to_process:
+            print("\n[✓] All files are already in the requested format. Nothing to do!")
+            if input("Try another format? (y/n): ").lower() == 'y': continue
+            else: break
+
+        # 5. User Input for Count
+        try:
+            print(f"\nFound {len(files_to_process)} files that NEED conversion.")
+            val = input(f"How many would you like to convert? (1-{len(files_to_process)}): ")
+            count = int(val)
+            if not (1 <= count <= len(files_to_process)):
+                print(f"Error: Range must be 1-{len(files_to_process)}.")
+                continue
+        except ValueError:
+            print("Error: Please enter a valid number.")
+            continue
+
+        selected_files = files_to_process[:count]
+
+        # 6. Preview & Confirmation
         preview = []
         print("\n--- Change Preview ---")
         for old_path in selected_files:
@@ -88,12 +96,11 @@ def main():
             print("Batch cancelled.")
             continue
 
-        # 6. Execution
+        # 7. Execution
         current_batch_renames = []
         print("\nRenaming files...")
         for i, (old_path, new_path) in enumerate(preview, 1):
             try:
-                # Collision check
                 if new_path.exists() and old_path != new_path:
                     print(f"[{i}/{count}] Skip: '{new_path.name}' already exists in folder.")
                     continue
@@ -104,7 +111,7 @@ def main():
             except Exception as e:
                 print(f"[{i}/{count}] Error on {old_path}: {e}")
 
-        # 7. Immediate Undo Option
+        # 8. Immediate Undo Option
         if current_batch_renames:
             undo_choice = input("\nBatch complete. Undo these changes immediately? (y/n): ").lower()
             if undo_choice == 'y':
@@ -116,11 +123,9 @@ def main():
                         print(f"Could not revert {new_p.name}: {e}")
                 print("Undo successful.")
             else:
-                # Add to history if not undone
                 for old_p, new_p in current_batch_renames:
                     session_history.append({"old": str(old_p), "new": str(new_p)})
 
-        # 8. Loop back or Exit
         if input("\nConvert more files? (y/n): ").lower() != 'y':
             break
 
